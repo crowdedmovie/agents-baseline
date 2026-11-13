@@ -1,3 +1,4 @@
+<!-- agents-baseline:begin -->
 # Shared Agent Instructions
 
 This AGENTS.md provides common development guidelines for AI coding agents across repositories. Follow the current repository's specific instructions and the user's explicit requests when they refine or override this baseline.
@@ -17,7 +18,7 @@ This AGENTS.md provides common development guidelines for AI coding agents acros
 - Write clear, consistent code with meaningful names and focused functions.
 - Keep business logic separate from presentation code when useful, without forcing extra layers.
 - Follow existing formatting, typing, and linting conventions where applicable.
-- Comment non-obvious decisions or logic, rather than narrating obvious code.
+- Comment non-obvious decisions or logic, rather than narrating obvious code. Report incomplete work or material workarounds in the PR/MR or hand-off. A code comment alone does not resolve the issue.
 - Handle relevant errors and edge cases; preserve compatibility with supported environments.
 - Prefer existing dependencies and built-in functionality when practical; update dependency declarations when needed.
 - Never hardcode, commit, disclose, or transfer passwords, tokens, credentials, or private signing keys.
@@ -160,17 +161,24 @@ When starting a new project, inspect the existing repository and resolve the rel
 - Supported platforms, execution environments, and technical constraints.
 - Existing stack or technical choices that need to be made.
 - Installation, development, and validation commands.
+- Whether a feature map would help and, if so, how much detail it should capture.
 - Backlog location and branch/PR conventions.
-- Whether the project needs published versions, release artifacts, or deployment.
+- Whether the project needs a build, CI/CD, published versions, release artifacts, or deployment. If applicable, decide together how to validate changes, where to build and publish artifacts, and how versions and releases will be managed.
 - Project-specific authorization requirements and exceptions.
 
 Do not repeat this initialization at every session. Reuse recorded decisions and revisit them only when requirements change.
 
 Not every question must be settled before development begins. Record unresolved points when useful and resolve them before work that depends on them.
 
-Add confirmed, durable repository-specific instructions below or in appropriately scoped AGENTS.md files. Reference detailed documentation instead of duplicating it.
+Use a relevant installed skill when it helps with the task, and follow the repository's instructions when applying it.
 
-Update these instructions when lasting project conventions change. Keep transient task progress, feature ideas, and session history in their appropriate tracking locations.
+Add durable, verified guidance in the `Repository-Specific Instructions` section below or in an appropriately scoped `AGENTS.md` file. Keep build commands and other procedures in their existing documentation or scripts when practical, and reference them here when useful.
+
+Agents may update repository-specific instructions on the working branch. Include related updates in the same PR/MR and explain what changed, why it matters, and how it was verified. Changes to the shared baseline and skills require an explicit request from the maintainer.
+
+Keep temporary task or branch notes in the thread, existing issue, or PR/MR. If the project has a feature map, update it in the same change when a feature's name, location, or user-facing behavior changes.
+
+<!-- agents-baseline:end -->
 
 ### Repository-Specific Instructions
 
