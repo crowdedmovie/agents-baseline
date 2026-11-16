@@ -148,6 +148,7 @@ This AGENTS.md provides common development guidelines for AI coding agents acros
 ## 9. Reporting and Hand-off
 
 - Briefly summarize changes made, relevant validations actually performed, and known issues or unfinished work.
+- Lead with the concrete result. Use plain, direct language, consistent terms, and evidence for claims. Keep the detail that helps the reader act or review.
 - State the current working branch and PR/MR status when relevant.
 - Distinguish work implemented on a branch from work merged or released.
 - Explain blockers and recommend concrete next actions when user input is needed.
@@ -155,20 +156,7 @@ This AGENTS.md provides common development guidelines for AI coding agents acros
 
 ## 10. Project Initialization and Repository-Specific Instructions
 
-When starting a new project, inspect the existing repository and resolve the relevant unanswered questions with the user:
-
-- Purpose, intended users, initial scope, and explicit exclusions.
-- Supported platforms, execution environments, and technical constraints.
-- Existing stack or technical choices that need to be made.
-- Installation, development, and validation commands.
-- Whether a feature map would help and, if so, how much detail it should capture.
-- Backlog location and branch/PR conventions.
-- Whether the project needs a build, CI/CD, published versions, release artifacts, or deployment. If applicable, decide together how to validate changes, where to build and publish artifacts, and how versions and releases will be managed.
-- Project-specific authorization requirements and exceptions.
-
-Do not repeat this initialization at every session. Reuse recorded decisions and revisit them only when requirements change.
-
-Not every question must be settled before development begins. Record unresolved points when useful and resolve them before work that depends on them.
+Use the `project-setup` skill when initializing a project or reviewing its conventions. Reuse settled decisions and record confirmed changes in the appropriate project documentation.
 
 Use a relevant installed skill when it helps with the task, and follow the repository's instructions when applying it.
 

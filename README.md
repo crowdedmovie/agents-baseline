@@ -1,40 +1,26 @@
 # agents-baseline
 
-A centralized collection of development guidelines for AI coding agents, designed to maintain consistent workflows and coding practices across my GitHub and GitLab repositories.
+Shared development guidelines and skills for AI coding agents on personal software projects. [AGENTS.md](AGENTS.md) defines the common rules. [skills/](skills/) holds workflows to use when the task calls for them.
 
-## Purpose
+## Install or update a project
 
-The [`AGENTS.md`](./AGENTS.md) file provides a common baseline covering:
+From a checkout of this repository, run the script against the target Git working tree.
 
-- Code quality, maintainability, and security.
-- Git branches, commits, and pull/merge request workflows.
-- Commit attribution and signing.
-- Proportionate testing and validation.
-- Semantic Versioning (SemVer) and release management.
-- Documentation and task reporting.
+```sh
+./sync.sh /path/to/project
+./sync.sh --claude /path/to/project
+```
 
-These guidelines are intentionally **technology-agnostic** and designed for personal software projects of different sizes and purposes.
+The default skill destination is `.agents/skills/` for Codex and OpenCode. The optional `--claude` also writes a copy to `.claude/skills/` for Claude Code. For Claude Code sessions that read only `CLAUDE.md`, add an `@AGENTS.md` import to that file to load the shared instructions. For T3 Code, start the thread in the working tree where you ran the sync and select the runtime you want to use. Use the skill selector when available, or ask the agent to follow the installed `SKILL.md` by name and path.
 
-## Usage
+The script creates `AGENTS.md` for a new project. On updates it replaces the block between `<!-- agents-baseline:begin -->` and `<!-- agents-baseline:end -->`. It preserves content outside the block, including the repository-specific section. For an older unmarked file, first mark the shared portion with those exact comments on their own lines. If the old file is entirely project-specific, add an empty marked block above it.
 
-1. Copy `AGENTS.md` into the root of a project repository.
-2. Add repository-specific instructions for its architecture, technologies, testing, and deployment requirements.
-3. Keep the shared guidelines as a common foundation while allowing each project to define its own conventions.
+The script installs or refreshes the shared skill folders it owns. Keep project-specific skills in their own folders. An existing folder with the same name and without the ownership marker stops the sync before it writes. Retired skills can be removed by hand after review.
 
-The guidelines are intended for Codex and other compatible AI coding agents.
+Fetch the latest intended baseline revision before syncing. Review the target's diff, then commit the update there.
 
-## Maintenance
+## Workflows
 
-This repository is the **source of truth** for the shared baseline.
+Use `project-setup` when starting a project or revisiting conventions such as the build, release process, feature map, or visual direction. Use `create-verification-skill` and `maintain-verification-skill` for project-local verification procedures based on real runs. Other workflows cover prompt refinement, code walkthroughs, architecture, bug fixes, regression tests, change impact, and recurring mistakes. See [opening a PR](skills/blast-radius/references/opening-a-pr.md) for the review hand-off.
 
-Changes to the common guidelines should be made here first, where they can be tracked through Git history.
-
-Updates can then be manually incorporated into individual repositories while preserving their project-specific instructions.
-
-There is currently no automatic synchronization between repositories.
-
-## Scope
-
-These guidelines are intended to provide consistency without imposing unnecessary complexity.
-
-Individual repositories may extend or override the baseline according to their requirements. Explicit user instructions take precedence when applicable.
+The adapted pstack material comes from Lauren Tan's pstack 0.15.36 and is distributed under the [MIT license](skills/LICENSE).
