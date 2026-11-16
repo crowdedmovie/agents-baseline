@@ -1,3 +1,4 @@
+<!-- agents-baseline:begin -->
 # Shared Agent Instructions
 
 This AGENTS.md provides common development guidelines for AI coding agents across repositories. Follow the current repository's specific instructions and the user's explicit requests when they refine or override this baseline.
@@ -17,7 +18,7 @@ This AGENTS.md provides common development guidelines for AI coding agents acros
 - Write clear, consistent code with meaningful names and focused functions.
 - Keep business logic separate from presentation code when useful, without forcing extra layers.
 - Follow existing formatting, typing, and linting conventions where applicable.
-- Comment non-obvious decisions or logic, rather than narrating obvious code.
+- Comment non-obvious decisions or logic, rather than narrating obvious code. Report incomplete work or material workarounds in the PR/MR or hand-off. A code comment alone does not resolve the issue.
 - Handle relevant errors and edge cases; preserve compatibility with supported environments.
 - Prefer existing dependencies and built-in functionality when practical; update dependency declarations when needed.
 - Never hardcode, commit, disclose, or transfer passwords, tokens, credentials, or private signing keys.
@@ -147,6 +148,7 @@ This AGENTS.md provides common development guidelines for AI coding agents acros
 ## 9. Reporting and Hand-off
 
 - Briefly summarize changes made, relevant validations actually performed, and known issues or unfinished work.
+- Lead with the concrete result. Use plain, direct language, consistent terms, and evidence for claims. Keep the detail that helps the reader act or review.
 - State the current working branch and PR/MR status when relevant.
 - Distinguish work implemented on a branch from work merged or released.
 - Explain blockers and recommend concrete next actions when user input is needed.
@@ -154,23 +156,17 @@ This AGENTS.md provides common development guidelines for AI coding agents acros
 
 ## 10. Project Initialization and Repository-Specific Instructions
 
-When starting a new project, inspect the existing repository and resolve the relevant unanswered questions with the user:
+Use the `project-setup` skill when initializing a project or reviewing its conventions. Reuse settled decisions and record confirmed changes in the appropriate project documentation.
 
-- Purpose, intended users, initial scope, and explicit exclusions.
-- Supported platforms, execution environments, and technical constraints.
-- Existing stack or technical choices that need to be made.
-- Installation, development, and validation commands.
-- Backlog location and branch/PR conventions.
-- Whether the project needs published versions, release artifacts, or deployment.
-- Project-specific authorization requirements and exceptions.
+Use a relevant installed skill when it helps with the task, and follow the repository's instructions when applying it.
 
-Do not repeat this initialization at every session. Reuse recorded decisions and revisit them only when requirements change.
+Add durable, verified guidance in the `Repository-Specific Instructions` section below or in an appropriately scoped `AGENTS.md` file. Keep build commands and other procedures in their existing documentation or scripts when practical, and reference them here when useful.
 
-Not every question must be settled before development begins. Record unresolved points when useful and resolve them before work that depends on them.
+Agents may update repository-specific instructions on the working branch. Include related updates in the same PR/MR and explain what changed, why it matters, and how it was verified. Changes to the shared baseline and skills require an explicit request from the maintainer.
 
-Add confirmed, durable repository-specific instructions below or in appropriately scoped AGENTS.md files. Reference detailed documentation instead of duplicating it.
+Keep temporary task or branch notes in the thread, existing issue, or PR/MR. If the project has a feature map, update it in the same change when a feature's name, location, or user-facing behavior changes.
 
-Update these instructions when lasting project conventions change. Keep transient task progress, feature ideas, and session history in their appropriate tracking locations.
+<!-- agents-baseline:end -->
 
 ### Repository-Specific Instructions
 
