@@ -4,14 +4,25 @@ Shared development guidelines and skills for AI coding agents on personal softwa
 
 ## Install or update a project
 
-From a checkout of this repository, run the script against the target Git working tree.
+Run the script from a checkout of this repository. Both scripts use Git to locate the target working tree.
+
+On Windows, use PowerShell 7 (`pwsh`) with Git for Windows on PATH.
+
+```powershell
+pwsh -NoProfile -File .\sync.ps1 "C:\Projects\my-project"
+pwsh -NoProfile -File .\sync.ps1 -Claude "C:\Projects\my-project"
+```
+
+If `pwsh` is missing, install PowerShell 7 with `winget install --id Microsoft.PowerShell --exact` and open a new terminal.
+
+In Bash, run:
 
 ```sh
 ./sync.sh /path/to/project
 ./sync.sh --claude /path/to/project
 ```
 
-The default skill destination is `.agents/skills/` for Codex and OpenCode. The optional `--claude` also writes a copy to `.claude/skills/` for Claude Code. For Claude Code sessions that read only `CLAUDE.md`, add an `@AGENTS.md` import to that file to load the shared instructions. For T3 Code, start the thread in the working tree where you ran the sync and select the runtime you want to use. Use the skill selector when available, or ask the agent to follow the installed `SKILL.md` by name and path.
+The default skill destination is `.agents/skills/` for Codex and OpenCode. Use `-Claude` in PowerShell or `--claude` in Bash to also write a copy to `.claude/skills/` for Claude Code. For Claude Code sessions that read only `CLAUDE.md`, add an `@AGENTS.md` import to that file to load the shared instructions. For T3 Code, start the thread in the working tree where you ran the sync and select the runtime you want to use. Use the skill selector when available, or ask the agent to follow the installed `SKILL.md` by name and path.
 
 The script creates `AGENTS.md` for a new project. On updates it replaces the block between `<!-- agents-baseline:begin -->` and `<!-- agents-baseline:end -->`. It preserves content outside the block, including the repository-specific section. For an older unmarked file, first mark the shared portion with those exact comments on their own lines. If the old file is entirely project-specific, add an empty marked block above it.
 
