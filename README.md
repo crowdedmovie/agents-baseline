@@ -30,6 +30,23 @@ The script installs or refreshes the shared skill folders it owns. Keep project-
 
 Fetch the latest intended baseline revision before syncing. Review the target's diff, then commit the update there.
 
+## Sync multiple projects on Windows
+
+Run `.\sync-all.ps1 -Help` or `.\sync-all.ps1 -h` for a quick parameter reference.
+
+Pull the baseline revision you want to distribute, then run:
+
+```powershell
+pwsh -NoProfile -File .\sync-all.ps1 -Root "$HOME\Code" -Publish -WhatIf
+pwsh -NoProfile -File .\sync-all.ps1 -Root "$HOME\Code" -Publish
+```
+
+`-Root` accepts a repository or a parent directory. Pass multiple roots as an array from PowerShell. The scan stops at each checkout and skips linked worktrees, submodules, directory links, and the source checkout of `agents-baseline`.
+
+With `-Publish`, the script looks up the default branch on the push destination of `origin` (or `-Remote`). It calls `sync.ps1` in a temporary worktree and commits and pushes the sync when there is a diff. Your active branch, index, and local edits stay in your own checkout. `-WhatIf` shows the proposed targets before fetching or writing. The summary lists the files included in each published commit, along with missing remotes or push failures. If publishing fails after creating a worktree, the warning gives its path for inspection.
+
+Bulk sync updates repositories with a managed `AGENTS.md` by default. Use `-ForceInstall` to include repositories with no `AGENTS.md`. Existing unmarked files are reported as `Needs migration`. Eligibility is checked on the remote branch with `-Publish` and in the local checkout otherwise. Both modes accept `-Claude` to add or refresh the Claude Code copy.
+
 ## Workflows
 
 Use `project-setup` when starting a project or revisiting conventions such as the build, release process, feature map, or visual direction. Use `create-verification-skill` and `maintain-verification-skill` for project-local verification procedures based on real runs. Other workflows cover prompt refinement, code walkthroughs, architecture, bug fixes, regression tests, change impact, and recurring mistakes. See [opening a PR](skills/blast-radius/references/opening-a-pr.md) for the review hand-off.
