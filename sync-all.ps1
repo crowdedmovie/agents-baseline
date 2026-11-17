@@ -6,6 +6,8 @@ param(
     [Parameter(ParameterSetName = 'Sync')]
     [switch] $Publish,
     [Parameter(ParameterSetName = 'Sync')]
+    [switch] $ForceInstall,
+    [Parameter(ParameterSetName = 'Sync')]
     [switch] $Claude,
     [Parameter(ParameterSetName = 'Sync')]
     [ValidateNotNullOrEmpty()]
@@ -20,19 +22,22 @@ if ($PSCmdlet.ParameterSetName -eq 'Help') {
 Sync the shared agent baseline across Git repositories.
 
 Usage
-  .\sync-all.ps1 -Root <path[]> [-Publish] [-Remote <name>] [-Claude] [-WhatIf]
+  .\sync-all.ps1 -Root <path[]> [-Publish] [-ForceInstall] [-Remote <name>] [-Claude] [-WhatIf]
   .\sync-all.ps1 -Help
 
-  -Root      One or more repository or parent paths. Parent paths are scanned recursively.
-  -Publish   Commit and push changes to the remote default branch. Omit for a local sync.
-  -Remote    Remote to use with -Publish. Defaults to origin.
-  -Claude    Also install or update the Claude Code copy of the shared skills.
-  -WhatIf    Preview the targets. With -Publish, query the remote without fetching or writing.
-  -Help, -h  Show this overview.
+  -Root          One or more repository or parent paths. Parent paths are scanned recursively.
+  -Publish       Commit and push changes to the remote default branch. Omit for a local sync.
+  -ForceInstall  Also install the baseline in repositories with no AGENTS.md.
+                 Existing unmarked files still require migration.
+  -Remote        Remote to use with -Publish. Defaults to origin.
+  -Claude        Also install or update the Claude Code copy of the shared skills.
+  -WhatIf        Preview the targets. With -Publish, query the remote without fetching or writing.
+  -Help, -h      Show this overview.
 
 Examples
   .\sync-all.ps1 -Root '..\save-web-int' -Publish -WhatIf
   .\sync-all.ps1 -Root "$HOME\Code" -Publish
+  .\sync-all.ps1 -Root "$HOME\Code\GitHub" -ForceInstall -Publish
   .\sync-all.ps1 -Root @('C:\Code\GitHub', 'C:\Code\GitLab') -Claude
 '@
     return
@@ -46,6 +51,9 @@ $sourceRepo = (Get-Item -LiteralPath $PSScriptRoot).FullName
 $syncScript = Join-Path $sourceRepo 'sync.ps1'
 $git = (Get-Command git -CommandType Application | Select-Object -First 1).Source
 $comparison = if ($IsWindows) { [StringComparer]::OrdinalIgnoreCase } else { [StringComparer]::Ordinal }
+$eligibleStatuses = @('Managed')
+if ($ForceInstall) { $eligibleStatuses += 'Not installed' }
+$syncAction = if ($ForceInstall) { 'Install or sync guidelines' } else { 'Sync managed guidelines' }
 
 function Invoke-RepoGit([string] $Repo, [string[]] $Arguments) {
     $output = & $git -C $Repo @Arguments 2>&1
@@ -125,7 +133,7 @@ function Publish-Repository([string] $Repo, [hashtable] $Target) {
     $changes = @()
     try {
         $status = Get-InstallStatus $worktree
-        if ($status -eq 'Managed') {
+        if ($status -in $eligibleStatuses) {
             $null = & $syncScript -TargetRepo $worktree -Claude:$Claude
             $paths = @('AGENTS.md', '.agents/skills')
             if ($Claude) { $paths += '.claude/skills' }
@@ -176,7 +184,7 @@ $results = foreach ($repo in $repositories) {
                 $status = "Skipped (no $Remote remote)"
             } else {
                 $branch = $target.Ref.Substring('refs/heads/'.Length)
-                if ($PSCmdlet.ShouldProcess("$repo -> $Remote/$branch", 'Sync, commit, and push managed guidelines')) {
+                if ($PSCmdlet.ShouldProcess("$repo -> $Remote/$branch", "$syncAction, then commit and push")) {
                     $publication = Publish-Repository $repo $target
                     $status = $publication.Status
                     $changes = $publication.Changes
@@ -186,8 +194,8 @@ $results = foreach ($repo in $repositories) {
             }
         } else {
             $status = Get-InstallStatus $repo
-            if ($status -eq 'Managed') {
-                if ($PSCmdlet.ShouldProcess($repo, 'Sync managed guidelines in the local checkout')) {
+            if ($status -in $eligibleStatuses) {
+                if ($PSCmdlet.ShouldProcess($repo, "$syncAction in the local checkout")) {
                     & $syncScript -TargetRepo $repo -Claude:$Claude | Out-Host
                     $status = 'Synced locally'
                 } else {

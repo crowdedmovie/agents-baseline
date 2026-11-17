@@ -43,9 +43,9 @@ pwsh -NoProfile -File .\sync-all.ps1 -Root "$HOME\Code" -Publish
 
 `-Root` accepts a repository or a parent directory. Pass multiple roots as an array from PowerShell. The scan stops at each checkout and skips linked worktrees, submodules, directory links, and the source checkout of `agents-baseline`.
 
-With `-Publish`, the script looks up the default branch on the push destination of `origin` (or `-Remote`). It calls `sync.ps1` in a temporary worktree and commits and pushes the sync when there is a diff. Your active branch, index, and local edits stay in your own checkout. `-WhatIf` shows the proposed targets before fetching or writing. The publish run checks eligibility on the remote branch, skips projects without a managed `AGENTS.md`, and reports older files that need migration. The summary lists the files included in each published commit. It reports repositories without the requested remote and push failures, such as branch protection. If publishing fails after creating a worktree, the warning gives its path for inspection.
+With `-Publish`, the script looks up the default branch on the push destination of `origin` (or `-Remote`). It calls `sync.ps1` in a temporary worktree and commits and pushes the sync when there is a diff. Your active branch, index, and local edits stay in your own checkout. `-WhatIf` shows the proposed targets before fetching or writing. The summary lists the files included in each published commit, along with missing remotes or push failures. If publishing fails after creating a worktree, the warning gives its path for inspection.
 
-Omit `-Publish` to update only the local checkouts that already have baseline markers. Use the single-project script to install on a new project. Both modes accept `-Claude` to add or refresh the Claude Code copy. Review the summary for paths that need attention.
+Bulk sync updates repositories with a managed `AGENTS.md` by default. Use `-ForceInstall` to include repositories with no `AGENTS.md`. Existing unmarked files are reported as `Needs migration`. Eligibility is checked on the remote branch with `-Publish` and in the local checkout otherwise. Both modes accept `-Claude` to add or refresh the Claude Code copy.
 
 ## Workflows
 
