@@ -93,15 +93,17 @@ function Publish-Repository([string] $Repo, [hashtable] $Target) {
     $null = Invoke-RepoGit $Repo @('fetch', '--no-tags', '--no-write-fetch-head', '--', $Target.Url, $Target.Tip)
     $null = Invoke-RepoGit $Repo @('worktree', 'add', '--detach', '--', $worktree, $Target.Tip)
 
+    $changes = @()
     try {
         $status = Get-InstallStatus $worktree
         if ($status -eq 'Managed') {
-            & $syncScript -TargetRepo $worktree -Claude:$Claude | Out-Host
+            $null = & $syncScript -TargetRepo $worktree -Claude:$Claude
             $paths = @('AGENTS.md', '.agents/skills')
             if ($Claude) { $paths += '.claude/skills' }
             $null = Invoke-RepoGit $worktree (@('add', '-A', '--') + $paths)
 
-            if (!(Invoke-RepoGit $worktree @('diff', '--cached', '--name-only'))) {
+            $changes = @(Invoke-RepoGit $worktree @('diff', '--cached', '--name-status'))
+            if ($changes.Count -eq 0) {
                 $status = 'Already up to date'
             } else {
                 $tree = Invoke-RepoGit $worktree @('write-tree')
@@ -126,7 +128,7 @@ function Publish-Repository([string] $Repo, [hashtable] $Target) {
     }
 
     $null = Invoke-RepoGit $Repo @('worktree', 'remove', '--', $worktree)
-    return $status
+    return [pscustomobject]@{ Status = $status; Changes = $changes }
 }
 
 $repositories = @(Find-Repositories $Root | Sort-Object)
@@ -137,6 +139,7 @@ if (!$repositories.Count) {
 
 $results = foreach ($repo in $repositories) {
     $branch = ''
+    $changes = @()
     try {
         if ($Publish) {
             $target = Get-PublishTarget $repo
@@ -145,7 +148,9 @@ $results = foreach ($repo in $repositories) {
             } else {
                 $branch = $target.Ref.Substring('refs/heads/'.Length)
                 if ($PSCmdlet.ShouldProcess("$repo -> $Remote/$branch", 'Sync, commit, and push managed guidelines')) {
-                    $status = Publish-Repository $repo $target
+                    $publication = Publish-Repository $repo $target
+                    $status = $publication.Status
+                    $changes = $publication.Changes
                 } else {
                     $status = 'Preview'
                 }
@@ -165,12 +170,13 @@ $results = foreach ($repo in $repositories) {
         $status = 'Failed'
         Write-Warning "$repo - $($_.Exception.Message)"
     }
-    [pscustomobject]@{ Repository = $repo; Branch = $branch; Status = $status }
+    [pscustomobject]@{ Repository = $repo; Branch = $branch; Status = $status; Changes = $changes }
 }
 
 foreach ($result in $results) {
     $label = $result.Repository
     if ($result.Branch) { $label += " -> $Remote/$($result.Branch)" }
     Write-Output "$($result.Status) | $label"
+    foreach ($change in $result.Changes) { Write-Output "  $change" }
 }
 if ($results.Status -contains 'Failed') { exit 1 }
