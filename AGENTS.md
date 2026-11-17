@@ -65,7 +65,8 @@ This AGENTS.md provides common development guidelines for AI coding agents acros
 
 ## 5. Commits and Attribution
 
-- Commit at meaningful development milestones, grouping logically related changes together.
+- When an authorized implementation task is complete and ready for hand-off, review the diff, run the applicable checks, and commit the task's changes locally on the working branch. Proceed without a separate commit request. Honor explicit instructions to leave changes uncommitted, and follow the branch rules in section 4.
+- Group related changes at meaningful milestones and stage only changes that belong to the task. In the hand-off, give the commit SHA or explain what prevented the commit. Follow the PR/MR workflow separately.
 - Do not make a commit per file, per trivial adjustment, or automatically after every agent response.
 - Avoid both excessive micro-commits and large commits that mix unrelated changes.
 - Use clear, concise commit messages; prefer Conventional Commit prefixes where useful.
