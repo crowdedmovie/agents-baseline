@@ -32,6 +32,8 @@ Fetch the latest intended baseline revision before syncing. Review the target's 
 
 ## Sync multiple projects on Windows
 
+Run `.\sync-all.ps1 -Help` or `.\sync-all.ps1 -h` for a quick parameter reference.
+
 Pull the baseline revision you want to distribute, then run:
 
 ```powershell

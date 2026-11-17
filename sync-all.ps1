@@ -1,13 +1,42 @@
 #Requires -Version 7.0
-[CmdletBinding(SupportsShouldProcess)]
+[CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'Sync')]
 param(
-    [Parameter(Mandatory, Position = 0)]
+    [Parameter(Mandatory, Position = 0, ParameterSetName = 'Sync')]
     [string[]] $Root,
+    [Parameter(ParameterSetName = 'Sync')]
     [switch] $Publish,
+    [Parameter(ParameterSetName = 'Sync')]
     [switch] $Claude,
+    [Parameter(ParameterSetName = 'Sync')]
     [ValidateNotNullOrEmpty()]
-    [string] $Remote = 'origin'
+    [string] $Remote = 'origin',
+    [Parameter(Mandatory, ParameterSetName = 'Help')]
+    [Alias('h')]
+    [switch] $Help
 )
+
+if ($PSCmdlet.ParameterSetName -eq 'Help') {
+    Write-Output @'
+Sync the shared agent baseline across Git repositories.
+
+Usage
+  .\sync-all.ps1 -Root <path[]> [-Publish] [-Remote <name>] [-Claude] [-WhatIf]
+  .\sync-all.ps1 -Help
+
+  -Root      One or more repository or parent paths. Parent paths are scanned recursively.
+  -Publish   Commit and push changes to the remote default branch. Omit for a local sync.
+  -Remote    Remote to use with -Publish. Defaults to origin.
+  -Claude    Also install or update the Claude Code copy of the shared skills.
+  -WhatIf    Preview the targets. With -Publish, query the remote without fetching or writing.
+  -Help, -h  Show this overview.
+
+Examples
+  .\sync-all.ps1 -Root '..\save-web-int' -Publish -WhatIf
+  .\sync-all.ps1 -Root "$HOME\Code" -Publish
+  .\sync-all.ps1 -Root @('C:\Code\GitHub', 'C:\Code\GitLab') -Claude
+'@
+    return
+}
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
