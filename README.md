@@ -51,4 +51,6 @@ Bulk sync updates repositories with a managed `AGENTS.md` by default. Use `-Forc
 
 Use `project-setup` when starting a project or revisiting conventions such as the build, release process, feature map, or visual direction. Use `create-verification-skill` and `maintain-verification-skill` for project-local verification procedures based on real runs. Other workflows cover prompt refinement, code walkthroughs, architecture, bug fixes, regression tests, change impact, and recurring mistakes. See [opening a PR](skills/blast-radius/references/opening-a-pr.md) for the review hand-off.
 
+Use [`clean-branches`](skills/clean-branches/SKILL.md) on demand to audit or remove obsolete **local** branches in the current repository. It deletes only branches whose upstream has disappeared and whose commits are already contained in the remote default branch, while preserving branches used by worktrees and ambiguous cases. It never runs automatically or deletes remote branches.
+
 The adapted pstack material comes from Lauren Tan's pstack 0.15.36 and is distributed under the [MIT license](skills/LICENSE).
