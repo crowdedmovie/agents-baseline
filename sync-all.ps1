@@ -1,0 +1,176 @@
+#Requires -Version 7.0
+[CmdletBinding(SupportsShouldProcess)]
+param(
+    [Parameter(Mandatory, Position = 0)]
+    [string[]] $Root,
+    [switch] $Publish,
+    [switch] $Claude,
+    [ValidateNotNullOrEmpty()]
+    [string] $Remote = 'origin'
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$PSNativeCommandUseErrorActionPreference = $false
+
+$sourceRepo = (Get-Item -LiteralPath $PSScriptRoot).FullName
+$syncScript = Join-Path $sourceRepo 'sync.ps1'
+$git = (Get-Command git -CommandType Application | Select-Object -First 1).Source
+$comparison = if ($IsWindows) { [StringComparer]::OrdinalIgnoreCase } else { [StringComparer]::Ordinal }
+
+function Invoke-RepoGit([string] $Repo, [string[]] $Arguments) {
+    $output = & $git -C $Repo @Arguments 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "git $($Arguments[0]) failed (exit $LASTEXITCODE). $($output -join ' ')"
+    }
+    $output | Where-Object { $_ -is [string] }
+}
+
+function Find-Repositories([string[]] $Roots) {
+    $directories = [Collections.Generic.Stack[IO.DirectoryInfo]]::new()
+    $visited = [Collections.Generic.HashSet[string]]::new($comparison)
+    foreach ($path in $Roots) {
+        $item = Get-Item -LiteralPath $path
+        if (!$item.PSIsContainer) { throw "Expected a directory. Path $path" }
+        $directories.Push($item)
+    }
+
+    while ($directories.Count -gt 0) {
+        $directory = $directories.Pop()
+        if (!$visited.Add($directory.FullName) -or
+            ($directory.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+            $comparison.Equals($directory.FullName, $sourceRepo)) {
+            continue
+        }
+
+        $gitPath = Join-Path $directory.FullName '.git'
+        if (Test-Path -LiteralPath $gitPath -PathType Container) {
+            $directory.FullName
+        } elseif (!(Test-Path -LiteralPath $gitPath)) {
+            # Linked worktrees and submodules have a .git file.
+            foreach ($child in Get-ChildItem -LiteralPath $directory.FullName -Directory -Force) {
+                $directories.Push($child)
+            }
+        }
+    }
+}
+
+function Get-InstallStatus([string] $Repo) {
+    $instructions = Join-Path $Repo 'AGENTS.md'
+    if (!(Test-Path -LiteralPath $instructions -PathType Leaf)) {
+        return 'Not installed'
+    }
+
+    $text = [IO.File]::ReadAllText($instructions)
+    if ($text -cnotmatch '(?m)^<!-- agents-baseline:begin -->\r?$' -or
+        $text -cnotmatch '(?m)^<!-- agents-baseline:end -->\r?$') {
+        return 'Needs migration'
+    }
+
+    return 'Managed'
+}
+
+function Get-PublishTarget([string] $Repo) {
+    $names = @(Invoke-RepoGit $Repo @('remote'))
+    if ($Remote -cnotin $names) { return }
+    $urls = @(Invoke-RepoGit $Repo @('remote', 'get-url', '--push', '--all', '--', $Remote))
+    if ($urls.Count -ne 1) { throw "Remote $Remote must have one push destination." }
+
+    # Resolve HEAD on the actual push destination, including when pushurl is set.
+    $head = @(Invoke-RepoGit $Repo @('ls-remote', '--symref', '--', $urls[0], 'HEAD')) -join "`n"
+    $ref = [regex]::Match($head, '(?m)^ref: (refs/heads/[^\r\n\t]+)\tHEAD$')
+    $tip = [regex]::Match($head, '(?m)^([0-9a-f]{40}|[0-9a-f]{64})\tHEAD$')
+    if (!$ref.Success -or !$tip.Success) {
+        throw "Could not resolve the default branch on remote $Remote."
+    }
+
+    return @{ Ref = $ref.Groups[1].Value; Tip = $tip.Groups[1].Value; Url = $urls[0] }
+}
+
+function Publish-Repository([string] $Repo, [hashtable] $Target) {
+    # A detached worktree isolates the sync from the user's branch and index.
+    $worktree = Join-Path ([IO.Path]::GetTempPath()) "agents-baseline-$([guid]::NewGuid())"
+    $null = Invoke-RepoGit $Repo @('fetch', '--no-tags', '--no-write-fetch-head', '--', $Target.Url, $Target.Tip)
+    $null = Invoke-RepoGit $Repo @('worktree', 'add', '--detach', '--', $worktree, $Target.Tip)
+
+    try {
+        $status = Get-InstallStatus $worktree
+        if ($status -eq 'Managed') {
+            & $syncScript -TargetRepo $worktree -Claude:$Claude | Out-Host
+            $paths = @('AGENTS.md', '.agents/skills')
+            if ($Claude) { $paths += '.claude/skills' }
+            $null = Invoke-RepoGit $worktree (@('add', '-A', '--') + $paths)
+
+            if (!(Invoke-RepoGit $worktree @('diff', '--cached', '--name-only'))) {
+                $status = 'Already up to date'
+            } else {
+                $tree = Invoke-RepoGit $worktree @('write-tree')
+                $null = Invoke-RepoGit $worktree @('commit', '-m', 'chore: sync agent baseline')
+                $commit = Invoke-RepoGit $worktree @('rev-parse', 'HEAD')
+                $parent = Invoke-RepoGit $worktree @('rev-parse', 'HEAD^')
+                $committedTree = Invoke-RepoGit $worktree @('rev-parse', 'HEAD^{tree}')
+                if ($parent -cne $Target.Tip -or $committedTree -cne $tree) {
+                    throw 'The resulting commit differs from the staged sync.'
+                }
+
+                $null = Invoke-RepoGit $Repo @(
+                    '-c', 'push.followTags=false', '-c', "remote.$Remote.mirror=false",
+                    'push', '--porcelain', '--recurse-submodules=no', '--',
+                    $Remote, "${commit}:$($Target.Ref)"
+                )
+                $status = "Published $commit"
+            }
+        }
+    } catch {
+        throw "$($_.Exception.Message) Worktree retained at $worktree."
+    }
+
+    $null = Invoke-RepoGit $Repo @('worktree', 'remove', '--', $worktree)
+    return $status
+}
+
+$repositories = @(Find-Repositories $Root | Sort-Object)
+if (!$repositories.Count) {
+    Write-Output 'No project repositories found.'
+    return
+}
+
+$results = foreach ($repo in $repositories) {
+    $branch = ''
+    try {
+        if ($Publish) {
+            $target = Get-PublishTarget $repo
+            if (!$target) {
+                $status = "Skipped (no $Remote remote)"
+            } else {
+                $branch = $target.Ref.Substring('refs/heads/'.Length)
+                if ($PSCmdlet.ShouldProcess("$repo -> $Remote/$branch", 'Sync, commit, and push managed guidelines')) {
+                    $status = Publish-Repository $repo $target
+                } else {
+                    $status = 'Preview'
+                }
+            }
+        } else {
+            $status = Get-InstallStatus $repo
+            if ($status -eq 'Managed') {
+                if ($PSCmdlet.ShouldProcess($repo, 'Sync managed guidelines in the local checkout')) {
+                    & $syncScript -TargetRepo $repo -Claude:$Claude | Out-Host
+                    $status = 'Synced locally'
+                } else {
+                    $status = 'Preview'
+                }
+            }
+        }
+    } catch {
+        $status = 'Failed'
+        Write-Warning "$repo - $($_.Exception.Message)"
+    }
+    [pscustomobject]@{ Repository = $repo; Branch = $branch; Status = $status }
+}
+
+foreach ($result in $results) {
+    $label = $result.Repository
+    if ($result.Branch) { $label += " -> $Remote/$($result.Branch)" }
+    Write-Output "$($result.Status) | $label"
+}
+if ($results.Status -contains 'Failed') { exit 1 }
