@@ -43,7 +43,9 @@ pwsh -NoProfile -File .\sync-all.ps1 -Root "$HOME\Code" -Publish
 
 `-Root` accepts a repository or a parent directory. Pass multiple roots as an array from PowerShell. The scan stops at each checkout and skips linked worktrees, submodules, directory links, and the source checkout of `agents-baseline`.
 
-With `-Publish`, the script looks up the default branch on the push destination of `origin` (or `-Remote`). It calls `sync.ps1` in a temporary worktree and commits and pushes the sync when there is a diff. Your active branch, index, and local edits stay in your own checkout. `-WhatIf` shows the proposed targets before fetching or writing. The summary lists the files included in each published commit, along with missing remotes or push failures. If publishing fails after creating a worktree, the warning gives its path for inspection.
+With `-Publish`, the script looks up the default branch on the push destination of `origin` (or `-Remote`). It calls `sync.ps1` in a temporary worktree and commits and pushes the sync when there is a diff. If the remote was updated or already had the current baseline, the script fetches and fast-forwards the local checkout when it is clean, on that default branch, and tracking the same destination. It skips checkouts with local changes, a different branch or upstream, or a Git operation in progress. The fast-forward refuses to overwrite ignored local files.
+
+`-WhatIf` shows the proposed targets before fetching or writing. The summary lists the files included in each published commit and reports the local pull separately. A failed pull gives a nonzero exit status and keeps the publication result visible. If publishing fails after creating a worktree, the warning gives its path for inspection.
 
 Bulk sync updates repositories with a managed `AGENTS.md` by default. Use `-ForceInstall` to include repositories with no `AGENTS.md`. Existing unmarked files are reported as `Needs migration`. Eligibility is checked on the remote branch with `-Publish` and in the local checkout otherwise. Both modes accept `-Claude` to add or refresh the Claude Code copy.
 

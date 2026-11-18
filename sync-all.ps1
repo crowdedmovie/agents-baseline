@@ -26,7 +26,8 @@ Usage
   .\sync-all.ps1 -Help
 
   -Root          One or more repository or parent paths. Parent paths are scanned recursively.
-  -Publish       Commit and push changes to the remote default branch. Omit for a local sync.
+  -Publish       Commit and push changes to the remote default branch, then pull into an
+                 eligible local checkout. Omit for a local sync.
   -ForceInstall  Also install the baseline in repositories with no AGENTS.md.
                  Existing unmarked files still require migration.
   -Remote        Remote to use with -Publish. Defaults to origin.
@@ -133,7 +134,8 @@ function Publish-Repository([string] $Repo, [hashtable] $Target) {
     $changes = @()
     try {
         $status = Get-InstallStatus $worktree
-        if ($status -in $eligibleStatuses) {
+        $canPull = $status -in $eligibleStatuses
+        if ($canPull) {
             $null = & $syncScript -TargetRepo $worktree -Claude:$Claude
             $paths = @('AGENTS.md', '.agents/skills')
             if ($Claude) { $paths += '.claude/skills' }
@@ -165,7 +167,53 @@ function Publish-Repository([string] $Repo, [hashtable] $Target) {
     }
 
     $null = Invoke-RepoGit $Repo @('worktree', 'remove', '--', $worktree)
-    return [pscustomobject]@{ Status = $status; Changes = $changes }
+    return [pscustomobject]@{ Status = $status; Changes = $changes; CanPull = $canPull }
+}
+
+function Update-LocalCheckout([string] $Repo, [string] $Branch, [hashtable] $Target) {
+    $currentBranch = Invoke-RepoGit $Repo @('branch', '--show-current')
+    if ($currentBranch -cne $Branch) {
+        return "Pull skipped (local checkout is not on $Branch)"
+    }
+
+    $upstream = Invoke-RepoGit $Repo @(
+        'for-each-ref', '--format=%(upstream:remotename)%09%(upstream:remoteref)%09%(upstream)', $Target.Ref
+    )
+    $upstreamRemote, $upstreamBranch, $trackingRef = $upstream -csplit "`t"
+    $fetchUrl = Invoke-RepoGit $Repo @('remote', 'get-url', '--', $Remote)
+    if ($upstreamRemote -cne $Remote -or $upstreamBranch -cne $Target.Ref -or
+        $trackingRef -cnotlike 'refs/remotes/*' -or $fetchUrl -cne $Target.Url) {
+        return "Pull skipped (upstream does not match the push destination)"
+    }
+
+    $operationPaths = Invoke-RepoGit $Repo @(
+        'rev-parse', '--path-format=absolute', '--git-path', 'MERGE_HEAD', '--git-path', 'CHERRY_PICK_HEAD',
+        '--git-path', 'REVERT_HEAD', '--git-path', 'sequencer', '--git-path', 'rebase-merge',
+        '--git-path', 'rebase-apply', '--git-path', 'BISECT_START'
+    )
+    foreach ($path in $operationPaths) {
+        if (Test-Path -LiteralPath $path) {
+            return 'Pull skipped (a Git operation is in progress)'
+        }
+    }
+
+    $dirty = @(Invoke-RepoGit $Repo @('status', '--porcelain', '--untracked-files=normal', '--ignore-submodules=none'))
+    if ($dirty.Count) { return 'Pull skipped (local checkout has changes)' }
+
+    # Use the two steps of a pull so Git can refuse to overwrite ignored files.
+    $null = Invoke-RepoGit $Repo @(
+        'fetch', '--no-tags', '--no-recurse-submodules', '--no-write-fetch-head', '--refmap=',
+        '--', $Remote, "+$($Target.Ref):$trackingRef"
+    )
+    if ((Invoke-RepoGit $Repo @('branch', '--show-current')) -cne $Branch) {
+        return "Pull skipped (local checkout switched away from $Branch)"
+    }
+
+    $before = Invoke-RepoGit $Repo @('rev-parse', 'HEAD')
+    $null = Invoke-RepoGit $Repo @('merge', '--ff-only', '--no-autostash', '--no-squash', '--no-overwrite-ignore', '--', $trackingRef)
+    $after = Invoke-RepoGit $Repo @('rev-parse', 'HEAD')
+    if ($before -ceq $after) { return 'Local checkout already up to date' }
+    return "Pulled $Branch to $after"
 }
 
 $repositories = @(Find-Repositories $Root | Sort-Object)
@@ -177,6 +225,8 @@ if (!$repositories.Count) {
 $results = foreach ($repo in $repositories) {
     $branch = ''
     $changes = @()
+    $pull = ''
+    $pullFailed = $false
     try {
         if ($Publish) {
             $target = Get-PublishTarget $repo
@@ -184,10 +234,19 @@ $results = foreach ($repo in $repositories) {
                 $status = "Skipped (no $Remote remote)"
             } else {
                 $branch = $target.Ref.Substring('refs/heads/'.Length)
-                if ($PSCmdlet.ShouldProcess("$repo -> $Remote/$branch", "$syncAction, then commit and push")) {
+                if ($PSCmdlet.ShouldProcess("$repo -> $Remote/$branch", "$syncAction, then commit and push, then pull if eligible")) {
                     $publication = Publish-Repository $repo $target
                     $status = $publication.Status
                     $changes = $publication.Changes
+                    if ($publication.CanPull) {
+                        try {
+                            $pull = Update-LocalCheckout $repo $branch $target
+                        } catch {
+                            $pullFailed = $true
+                            $pull = 'Pull failed'
+                            Write-Warning "$repo - Local pull failed. $($_.Exception.Message)"
+                        }
+                    }
                 } else {
                     $status = 'Preview'
                 }
@@ -207,7 +266,14 @@ $results = foreach ($repo in $repositories) {
         $status = 'Failed'
         Write-Warning "$repo - $($_.Exception.Message)"
     }
-    [pscustomobject]@{ Repository = $repo; Branch = $branch; Status = $status; Changes = $changes }
+    [pscustomobject]@{
+        Repository = $repo
+        Branch = $branch
+        Status = $status
+        Changes = $changes
+        Pull = $pull
+        PullFailed = $pullFailed
+    }
 }
 
 foreach ($result in $results) {
@@ -215,5 +281,6 @@ foreach ($result in $results) {
     if ($result.Branch) { $label += " -> $Remote/$($result.Branch)" }
     Write-Output "$($result.Status) | $label"
     foreach ($change in $result.Changes) { Write-Output "  $change" }
+    if ($result.Pull) { Write-Output "  $($result.Pull)" }
 }
-if ($results.Status -contains 'Failed') { exit 1 }
+if ($results.Status -contains 'Failed' -or $results.PullFailed -contains $true) { exit 1 }
