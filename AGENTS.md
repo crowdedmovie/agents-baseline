@@ -121,6 +121,7 @@ This AGENTS.md provides common development guidelines for AI coding agents acros
 
 - Keep documentation short, accurate, and useful.
 - Update the README and related instructions when changes affect users, installation, configuration, or operation.
+- Include a small set of badges near the top of a software project's main README. Show the main programming language and add badges for runtimes, development tools, or deployment environments when they clarify how to use the project. Verify any version shown against the repository's configuration or documentation and keep the badges current.
 - Record important assumptions, non-obvious behavior, and known limitations.
 - Keep executable procedures in scripts or appropriate tooling; reference them from AGENTS.md rather than embedding lengthy instructions.
 - Do not create unnecessary documentation files.
