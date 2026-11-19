@@ -72,8 +72,11 @@ fi
 
 source_skills=("$source_root"/skills/*/SKILL.md)
 [[ -f "${source_skills[0]}" ]] || fail "No source skills found."
-notice="$source_root/skills/LICENSE"
-notice_name='PSTACK-LICENSE'
+notice_names=('BASELINE-LICENSE' 'PSTACK-LICENSE')
+notice_sources=("$source_root/LICENSE" "$source_root/skills/LICENSE")
+for notice in "${notice_sources[@]}"; do
+    [[ -f "$notice" && -r "$notice" ]] || fail "Missing or unreadable license: $notice"
+done
 
 # Check ownership and collisions across every requested target before copying.
 for skill_target in "${skill_targets[@]}"; do
@@ -82,12 +85,14 @@ for skill_target in "${skill_targets[@]}"; do
         [[ ! -e "$directory" || -d "$directory" ]] || fail "Expected a directory: $directory"
     done
 
-    target_notice="$skill_target/$notice_name"
-    [[ ! -L "$target_notice" ]] || fail "License path is a symlink: $target_notice"
-    if [[ -e "$target_notice" ]]; then
-        [[ -f "$target_notice" ]] && cmp -s "$notice" "$target_notice" ||
-            fail "Existing license differs: $target_notice"
-    fi
+    for index in "${!notice_names[@]}"; do
+        target_notice="$skill_target/${notice_names[$index]}"
+        [[ ! -L "$target_notice" ]] || fail "License path is a symlink: $target_notice"
+        if [[ -e "$target_notice" ]]; then
+            [[ -f "$target_notice" ]] && cmp -s "${notice_sources[$index]}" "$target_notice" ||
+                fail "Existing license differs: $target_notice"
+        fi
+    done
 
     for skill_file in "${source_skills[@]}"; do
         skill_dir="${skill_file%/SKILL.md}"
@@ -150,10 +155,13 @@ done
 
 for skill_target in "${skill_targets[@]}"; do
     mkdir -p -- "$skill_target"
-    if [[ ! -f "$skill_target/$notice_name" ]]; then
-        cp -- "$notice" "$staging/$notice_name"
-        mv -- "$staging/$notice_name" "$skill_target/$notice_name"
-    fi
+    for index in "${!notice_names[@]}"; do
+        notice_name="${notice_names[$index]}"
+        if [[ ! -f "$skill_target/$notice_name" ]]; then
+            cp -- "${notice_sources[$index]}" "$staging/$notice_name"
+            mv -- "$staging/$notice_name" "$skill_target/$notice_name"
+        fi
+    done
 
     for skill_file in "${source_skills[@]}"; do
         skill_dir="${skill_file%/SKILL.md}"

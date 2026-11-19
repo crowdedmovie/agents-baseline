@@ -12,7 +12,6 @@ $ErrorActionPreference = 'Stop'
 $beginMarker = '<!-- agents-baseline:begin -->'
 $endMarker = '<!-- agents-baseline:end -->'
 $ownerMarker = '.agents-baseline'
-$licenseName = 'PSTACK-LICENSE'
 
 function Get-PlainItem([string] $Path) {
     try {
@@ -81,7 +80,10 @@ if ([IO.Path]::GetRelativePath($sourceRoot, $targetRoot) -eq '.') {
 $sourceInstructions = Join-Path $sourceRoot 'AGENTS.md'
 $targetInstructions = Join-Path $targetRoot 'AGENTS.md'
 $skillRoot = Join-Path $sourceRoot 'skills'
-$license = Join-Path $skillRoot 'LICENSE'
+$licenses = [ordered]@{
+    'BASELINE-LICENSE' = Join-Path $sourceRoot 'LICENSE'
+    'PSTACK-LICENSE' = Join-Path $skillRoot 'LICENSE'
+}
 $locations = @('.agents/skills')
 if ($Claude) { $locations += '.claude/skills' }
 
@@ -90,7 +92,10 @@ $encoding = [Text.Encoding]::Latin1
 $sourceText = $encoding.GetString([IO.File]::ReadAllBytes($sourceInstructions))
 $sourceRange = Get-BaselineRange $sourceText $sourceInstructions
 $sourceBlock = $sourceText.Substring($sourceRange.Start, $sourceRange.End - $sourceRange.Start)
-$licenseText = [IO.File]::ReadAllText($license).Replace("`r`n", "`n")
+$licenseTexts = @{}
+foreach ($licenseName in $licenses.Keys) {
+    $licenseTexts[$licenseName] = [IO.File]::ReadAllText($licenses[$licenseName]).Replace("`r`n", "`n")
+}
 $skills = @(Get-ChildItem -LiteralPath $skillRoot -Directory | Where-Object {
     Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md') -PathType Leaf
 })
@@ -130,10 +135,12 @@ try {
             $item = Get-PlainItem $path
             if ($item -and !$item.PSIsContainer) { throw "Expected a directory. Path $path" }
         }
-        $notice = Get-PlainItem (Join-Path $skillTarget $licenseName)
-        if ($notice -and ($notice.PSIsContainer -or
-            [IO.File]::ReadAllText($notice.FullName).Replace("`r`n", "`n") -cne $licenseText)) {
-            throw "Existing license differs. Path $($notice.FullName)"
+        foreach ($licenseName in $licenses.Keys) {
+            $notice = Get-PlainItem (Join-Path $skillTarget $licenseName)
+            if ($notice -and ($notice.PSIsContainer -or
+                [IO.File]::ReadAllText($notice.FullName).Replace("`r`n", "`n") -cne $licenseTexts[$licenseName])) {
+                throw "Existing license differs. Path $($notice.FullName)"
+            }
         }
 
         foreach ($skill in $skills) {
@@ -169,11 +176,13 @@ try {
     foreach ($location in $locations) {
         $skillTarget = Join-Path $targetRoot $location
         $null = [IO.Directory]::CreateDirectory($skillTarget)
-        $noticePath = Join-Path $skillTarget $licenseName
-        if (![IO.File]::Exists($noticePath)) {
-            $stagedNotice = Join-Path $stage $licenseName
-            [IO.File]::Copy($license, $stagedNotice)
-            [IO.File]::Move($stagedNotice, $noticePath)
+        foreach ($licenseName in $licenses.Keys) {
+            $noticePath = Join-Path $skillTarget $licenseName
+            if (![IO.File]::Exists($noticePath)) {
+                $stagedNotice = Join-Path $stage $licenseName
+                [IO.File]::Copy($licenses[$licenseName], $stagedNotice)
+                [IO.File]::Move($stagedNotice, $noticePath)
+            }
         }
 
         foreach ($skill in $skills) {
