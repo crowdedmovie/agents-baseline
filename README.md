@@ -1,5 +1,9 @@
 # agents-baseline
 
+![PowerShell 7+](https://img.shields.io/badge/PowerShell-7%2B-3572A5)
+![Bash](https://img.shields.io/badge/Bash-shell-4EAA25?logo=gnubash&logoColor=white)
+[![License MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
+
 Shared development guidelines and skills for AI coding agents on personal software projects. [AGENTS.md](AGENTS.md) defines the common rules. [skills/](skills/) holds workflows to use when the task calls for them.
 
 ## Install or update a project
@@ -57,4 +61,10 @@ Use [`create-workflow-skill`](skills/create-workflow-skill/SKILL.md) on demand t
 
 Use [`clean-branches`](skills/clean-branches/SKILL.md) on demand to audit or remove obsolete **local** branches in the current repository. It deletes only branches whose upstream has disappeared and whose commits are already contained in the remote default branch, while preserving branches used by worktrees and ambiguous cases. It never runs automatically or deletes remote branches.
 
-The adapted pstack material comes from Lauren Tan's pstack 0.15.36 and is distributed under the [MIT license](skills/LICENSE).
+## License
+
+The original instructions, scripts, documentation, and skills are available under the [MIT license](LICENSE).
+
+The `architect`, `blast-radius`, `bug-fix`, `correct`, `create-verification-skill`, `how`, `in-your-own-words`, `maintain-verification-skill`, `sharpen`, `tdd`, `teach`, and `why` workflows adapt material from Lauren Tan's pstack 0.15.36. Their upstream copyright and MIT terms are preserved in [`skills/LICENSE`](skills/LICENSE).
+
+Sync copies both notices alongside the shared skills as `BASELINE-LICENSE` and `PSTACK-LICENSE`. Each target project keeps its own license.
